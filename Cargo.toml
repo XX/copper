@@ -1,0 +1,10 @@
+[package]
+name = "copper"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+bevy = "0.5"
+bevy_fly_camera = "0.7.0"
+dashmap = "4.0"
+lazy_static = "1.4"
