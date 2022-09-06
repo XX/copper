@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use bevy::prelude::{Entity, EventWriter, Mut, Query, With};
+use bevy::prelude::{Component, Entity, EventWriter, Mut, Query, With};
 
 use crate::{
     find_entity,
@@ -16,9 +16,13 @@ pub struct Fetch<'a, T> {
     _type_marker: PhantomData<T>,
 }
 
-pub type FetchQuery<'a, 'b, N> = Query<'a, &'b Node, With<<N as TypedNode>::Type>>;
+pub type FetchQuery<'world, 'state, 'b, N> = Query<'world, 'state, &'b Node, With<<N as TypedNode>::Type>>;
 
-impl<'a, T: TypedNode + 'static> Fetch<'a, T> {
+impl<'a, T> Fetch<'a, T>
+where
+    T: TypedNode + 'static,
+    <T as TypedNode>::Type: Component,
+{
     pub fn find(name: impl AsRef<str>, query: &'a FetchQuery<T>) -> Option<Self> {
         let id = find_entity(name)?;
         Self::new(id, query)
@@ -47,30 +51,35 @@ impl<T: TypedNode + 'static> Deref for Fetch<'_, T> {
     }
 }
 
-pub struct FetchMut<'a, T> {
-    finals_updater: Option<EventWriter<'a, UpdateEvent>>,
-    node: Mut<'a, Node>,
-    finals: &'a Finals,
+pub struct FetchMut<'world, 'state, T> {
+    finals_updater: Option<EventWriter<'world, 'state, UpdateEvent>>,
+    node: Mut<'world, Node>,
+    finals: &'world Finals,
     _type_marker: PhantomData<T>,
 }
 
-pub type FetchMutQuery<'a, 'b, 'c, N> = Query<'a, (&'b mut Node, &'c Finals), With<<N as TypedNode>::Type>>;
+pub type FetchMutQuery<'world, 'state, 'a, 'b, N> =
+    Query<'world, 'state, (&'a mut Node, &'b Finals), With<<N as TypedNode>::Type>>;
 
-impl<'a, T: TypedNode + 'static> FetchMut<'a, T> {
-    pub fn find(name: impl AsRef<str>, query: &'a mut FetchMutQuery<T>) -> Option<Self> {
+impl<'world, 'state, T> FetchMut<'world, 'state, T>
+where
+    T: TypedNode + 'static,
+    <T as TypedNode>::Type: Component,
+{
+    pub fn find(name: impl AsRef<str>, query: &'world mut FetchMutQuery<T>) -> Option<Self> {
         let id = find_entity(name)?;
         Self::new(id, query)
     }
 
     pub fn find_with_finals_updater(
         name: impl AsRef<str>,
-        query: &'a mut FetchMutQuery<T>,
-        updater: EventWriter<'a, UpdateEvent>,
+        query: &'world mut FetchMutQuery<T>,
+        updater: EventWriter<'world, 'state, UpdateEvent>,
     ) -> Option<Self> {
         Some(Self::find(name, query)?.with_finals_updater(updater))
     }
 
-    pub fn new(id: Entity, query: &'a mut FetchMutQuery<T>) -> Option<Self> {
+    pub fn new(id: Entity, query: &'world mut FetchMutQuery<T>) -> Option<Self> {
         let (node, finals) = query.get_mut(id).ok()?;
         node.as_any_ref().downcast_ref::<T>()?;
 
@@ -84,13 +93,13 @@ impl<'a, T: TypedNode + 'static> FetchMut<'a, T> {
 
     pub fn new_with_finals_updater(
         id: Entity,
-        query: &'a mut FetchMutQuery<T>,
-        updater: EventWriter<'a, UpdateEvent>,
+        query: &'world mut FetchMutQuery<T>,
+        updater: EventWriter<'world, 'state, UpdateEvent>,
     ) -> Option<Self> {
         Some(Self::new(id, query)?.with_finals_updater(updater))
     }
 
-    pub fn with_finals_updater(mut self, updater: EventWriter<'a, UpdateEvent>) -> Self {
+    pub fn with_finals_updater(mut self, updater: EventWriter<'world, 'state, UpdateEvent>) -> Self {
         self.finals_updater.replace(updater);
         self
     }
@@ -100,8 +109,8 @@ impl<'a, T: TypedNode + 'static> FetchMut<'a, T> {
     }
 }
 
-impl<'a, T> FetchMut<'a, T> {
-    pub fn finalize(&mut self) -> Option<EventWriter<'a, UpdateEvent>> {
+impl<'world, 'state, T> FetchMut<'world, 'state, T> {
+    pub fn finalize(&mut self) -> Option<EventWriter<'world, 'state, UpdateEvent>> {
         self.finals_updater.take().map(|mut event_writer| {
             for final_id in &self.finals.0 {
                 event_writer.send(UpdateEvent(*final_id));
@@ -111,13 +120,13 @@ impl<'a, T> FetchMut<'a, T> {
     }
 }
 
-impl<T> Drop for FetchMut<'_, T> {
+impl<T> Drop for FetchMut<'_, '_, T> {
     fn drop(&mut self) {
         self.finalize();
     }
 }
 
-impl<T: TypedNode + 'static> Deref for FetchMut<'_, T> {
+impl<T: TypedNode + 'static> Deref for FetchMut<'_, '_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -125,22 +134,25 @@ impl<T: TypedNode + 'static> Deref for FetchMut<'_, T> {
     }
 }
 
-impl<T: TypedNode + 'static> DerefMut for FetchMut<'_, T> {
+impl<T: TypedNode + 'static> DerefMut for FetchMut<'_, '_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.node.as_any_mut().downcast_mut().unwrap()
     }
 }
 
-pub trait FetchingNode: TypedNode + Sized + 'static {
+pub trait FetchingNode: TypedNode + Sized + 'static
+where
+    <Self as TypedNode>::Type: Component,
+{
     fn get<'a>(id: Entity, query: &'a FetchQuery<Self>) -> Option<Fetch<'a, Self>> {
         Fetch::new(id, query)
     }
 
-    fn get_mut<'a>(
+    fn get_mut<'world, 'state>(
         id: Entity,
-        query: &'a mut FetchMutQuery<Self>,
-        updater: EventWriter<'a, UpdateEvent>,
-    ) -> Option<FetchMut<'a, Self>> {
+        query: &'world mut FetchMutQuery<Self>,
+        updater: EventWriter<'world, 'state, UpdateEvent>,
+    ) -> Option<FetchMut<'world, 'state, Self>> {
         FetchMut::new_with_finals_updater(id, query, updater)
     }
 
@@ -148,13 +160,18 @@ pub trait FetchingNode: TypedNode + Sized + 'static {
         Fetch::find(name, query)
     }
 
-    fn find_mut<'a>(
+    fn find_mut<'world, 'state>(
         name: impl AsRef<str>,
-        query: &'a mut FetchMutQuery<Self>,
-        updater: EventWriter<'a, UpdateEvent>,
-    ) -> Option<FetchMut<'a, Self>> {
+        query: &'world mut FetchMutQuery<Self>,
+        updater: EventWriter<'world, 'state, UpdateEvent>,
+    ) -> Option<FetchMut<'world, 'state, Self>> {
         FetchMut::find_with_finals_updater(name, query, updater)
     }
 }
 
-impl<T: TypedNode + 'static> FetchingNode for T {}
+impl<T> FetchingNode for T
+where
+    T: TypedNode + 'static,
+    <T as TypedNode>::Type: Component,
+{
+}

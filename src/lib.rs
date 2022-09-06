@@ -1,4 +1,4 @@
-use bevy::prelude::{AppBuilder, IntoSystem, Plugin};
+use bevy::prelude::{App, Plugin};
 
 pub use self::{
     entity::*,
@@ -13,9 +13,9 @@ pub mod process;
 pub struct CopperPlugin;
 
 impl Plugin for CopperPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_event::<node::UpdateEvent>()
-            .add_system(process::finalize.system())
-            .add_system(node::final_update.system());
+            .add_system(process::finalize)
+            .add_system(node::final_update);
     }
 }

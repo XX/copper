@@ -1,13 +1,14 @@
 use std::any::Any;
 
-use bevy::prelude::{BuildChildren, Commands, Entity};
+use bevy::prelude::{BuildChildren, Commands, Component, Entity};
 
-pub use self::{material::*, r#box::*, r#final::*};
+pub use self::{material::*, r#box::*, r#final::*, selection_group::*};
 use crate::{store_entity, ProcessObject};
 
 pub mod r#box;
 pub mod r#final;
 pub mod material;
+pub mod selection_group;
 
 #[derive(Copy, Clone)]
 pub struct SpawnedNode {
@@ -20,7 +21,7 @@ impl SpawnedNode {
         self
     }
 
-    pub fn add_inputs(self, commands: &mut Commands, inputs: &[Entity]) -> Self {
+    pub fn inputs(self, commands: &mut Commands, inputs: &[Entity]) -> Self {
         commands.entity(self.id).push_children(inputs);
         self
     }
@@ -32,6 +33,7 @@ pub trait CommonNode: Send + Sync + Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
+#[derive(Component)]
 pub struct Node(pub std::boxed::Box<dyn CommonNode>);
 
 impl CommonNode for Node {

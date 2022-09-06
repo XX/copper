@@ -1,10 +1,10 @@
 use std::any::Any;
 
-use bevy::prelude::{Commands, StandardMaterial};
+use bevy::prelude::{Commands, Component, StandardMaterial};
 
 use crate::{node::Finals, CommonNode, Node, ProcessObject, SpawnedNode, TypedNode};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Component)]
 pub struct MaterialType;
 
 impl TypedNode for Material {
@@ -33,20 +33,7 @@ impl Material {
 
 impl CommonNode for Material {
     fn process(&self, object: &mut ProcessObject) {
-        object.material.push(StandardMaterial {
-            base_color: self.material.base_color,
-            base_color_texture: self.material.base_color_texture.clone(),
-            roughness: self.material.roughness,
-            metallic: self.material.metallic,
-            metallic_roughness_texture: self.material.metallic_roughness_texture.clone(),
-            reflectance: self.material.reflectance,
-            normal_map: self.material.normal_map.clone(),
-            double_sided: self.material.double_sided,
-            occlusion_texture: self.material.occlusion_texture.clone(),
-            emissive: self.material.emissive,
-            emissive_texture: self.material.emissive_texture.clone(),
-            unlit: self.material.unlit,
-        });
+        object.materials.push(self.material.clone());
     }
 
     fn as_any_ref(&self) -> &dyn Any {

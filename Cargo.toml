@@ -1,10 +1,19 @@
 [package]
 name = "copper"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-bevy = "0.5"
-bevy_fly_camera = "0.7.0"
-dashmap = "4.0"
+bevy = "0.8"
+bevy_fly_camera = { git = "https://github.com/PikminGuts92/bevy_fly_camera.git", branch = "bevy-0.8" }
+dashmap = "5.4"
 lazy_static = "1.4"
+smallvec = "1.9"
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3

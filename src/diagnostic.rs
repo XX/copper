@@ -1,9 +1,9 @@
-use bevy::app::{AppBuilder, Plugin};
+use bevy::app::{App, Plugin};
 
 pub struct DiagnosticPlugin;
 
 impl Plugin for DiagnosticPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default());
         app.add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
         // app.add_plugin(bevy::wgpu::diagnostic::WgpuResourceDiagnosticsPlugin::default());

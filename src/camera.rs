@@ -1,25 +1,29 @@
 use bevy::{
-    app::{AppBuilder, EventReader, Plugin},
-    ecs::system::{Commands, IntoSystem, Query, Res},
+    app::{App, Plugin},
+    ecs::system::{Commands, Query, Res},
     input::{
         mouse::{MouseButton, MouseMotion, MouseWheel},
         Input,
     },
     math::{Mat3, Quat, Vec2, Vec3},
-    render::{camera::PerspectiveProjection, entity::PerspectiveCameraBundle},
+    prelude::{Camera3dBundle, Component, EventReader},
+    render::camera::Projection,
     transform::components::Transform,
     window::Windows,
 };
+use bevy_fly_camera::FlyCamera;
 
 pub struct PanOrbitCameraPlugin;
 
 impl Plugin for PanOrbitCameraPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(spawn_camera.system())
-            .add_system(pan_orbit_camera.system());
+    fn build(&self, app: &mut App) {
+        app.add_startup_system(spawn_camera)
+            // .add_plugin(bevy_fly_camera::FlyCameraPlugin)
+            .add_system(pan_orbit_camera);
     }
 }
 
+#[derive(Component)]
 pub struct PanOrbitCamera {
     pub focus: Vec3,
     pub radius: f32,
@@ -41,12 +45,16 @@ pub fn spawn_camera(mut commands: Commands) {
     let radius = translation.length();
 
     commands
-        .spawn_bundle(PerspectiveCameraBundle {
+        .spawn_bundle(Camera3dBundle {
             transform: Transform::from_translation(translation).looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
         })
         .insert(PanOrbitCamera {
             radius,
+            ..Default::default()
+        })
+        .insert(FlyCamera {
+            sensitivity: 10.0,
             ..Default::default()
         });
 }
@@ -57,7 +65,7 @@ pub fn pan_orbit_camera(
     mut motion_events: EventReader<MouseMotion>,
     mut scroll_events: EventReader<MouseWheel>,
     input_mouse: Res<Input<MouseButton>>,
-    mut query: Query<(&mut PanOrbitCamera, &mut Transform, &PerspectiveProjection)>,
+    mut query: Query<(&mut PanOrbitCamera, &mut Transform, &Projection)>,
 ) {
     // change input mapping for orbit and panning here
     let orbit_button = MouseButton::Right;
@@ -117,7 +125,9 @@ pub fn pan_orbit_camera(
             any = true;
             // make panning distance independent of resolution and FOV,
             let window = get_primary_window_size(&windows);
-            pan *= Vec2::new(projection.fov * projection.aspect_ratio, projection.fov) / window;
+            if let Projection::Perspective(projection) = projection {
+                pan *= Vec2::new(projection.fov * projection.aspect_ratio, projection.fov) / window;
+            }
             // translate by local axes
             let right = transform.rotation * Vec3::X * -pan.x;
             let up = transform.rotation * Vec3::Y * pan.y;

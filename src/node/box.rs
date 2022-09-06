@@ -1,10 +1,10 @@
 use std::any::Any;
 
-use bevy::prelude::{shape, Commands, Mesh, Transform, Vec3};
+use bevy::prelude::{shape, Commands, Component, Mesh, Transform, Vec3};
 
 use crate::{node::Finals, CommonNode, Node, ProcessObject, SpawnedNode, TypedNode};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Component)]
 pub struct BoxType;
 
 impl TypedNode for Box {
@@ -46,7 +46,7 @@ impl Default for Box {
 impl CommonNode for Box {
     fn process(&self, object: &mut ProcessObject) {
         object
-            .mesh
+            .meshes
             .push(Mesh::from(shape::Box::new(self.length.x, self.length.y, self.length.z)));
         object.transform = Some(
             object

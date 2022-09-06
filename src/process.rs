@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 use bevy::prelude::{
-    Assets, Children, Commands, Entity, GlobalTransform, Mesh, PbrBundle, Query, ResMut, StandardMaterial, Transform,
-    With,
+    Assets, Children, Commands, Component, Entity, GlobalTransform, Mesh, PbrBundle, Query, ResMut, StandardMaterial,
+    Transform, With,
 };
 
 use crate::{
-    node::{FinalType, Finals},
+    node::{FinalType, Finals, Selection},
     CommonNode, Node,
 };
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Component)]
 pub enum PbrState {
     NotCalculated,
     Calculated,
@@ -32,8 +34,9 @@ impl PbrState {
 
 #[derive(Default)]
 pub struct ProcessObject {
-    pub mesh: Vec<Mesh>,
-    pub material: Vec<StandardMaterial>,
+    pub meshes: Vec<Mesh>,
+    pub selections: HashMap<String, Vec<Selection>>,
+    pub materials: Vec<StandardMaterial>,
     pub transform: Option<Transform>,
     pub global_transform: Option<GlobalTransform>,
 }
@@ -41,23 +44,24 @@ pub struct ProcessObject {
 impl ProcessObject {
     pub fn into_pbr(
         self,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<StandardMaterial>>,
+        asset_meshes: &mut ResMut<Assets<Mesh>>,
+        asset_materials: &mut ResMut<Assets<StandardMaterial>>,
     ) -> PbrBundle {
         let ProcessObject {
-            mesh,
-            material,
+            meshes,
+            selections: _,
+            materials,
             transform,
             global_transform,
         } = self;
         let mut pbr = PbrBundle::default();
 
-        if let Some(mesh) = mesh.into_iter().next() {
-            pbr.mesh = meshes.add(mesh);
+        if let Some(mesh) = meshes.into_iter().next() {
+            pbr.mesh = asset_meshes.add(mesh);
         }
 
-        if let Some(material) = material.into_iter().next() {
-            pbr.material = materials.add(material);
+        if let Some(material) = materials.into_iter().next() {
+            pbr.material = asset_materials.add(material);
         }
 
         if let Some(transform) = transform {
@@ -106,9 +110,9 @@ fn process_input(
     }
 
     let inputs = query.get_component::<Children>(input_id);
-    if let Ok(inputs) = inputs {
-        for input_id in inputs.clone().iter() {
-            process_input(final_id, *input_id, query, object);
+    if let Ok(inputs) = inputs.map(|inputs| inputs.iter().copied().collect::<Vec<_>>()) {
+        for input_id in inputs {
+            process_input(final_id, input_id, query, object);
         }
     }
 

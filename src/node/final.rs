@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use bevy::prelude::{Bundle, Commands, Entity, EventReader, PbrBundle, Query, With};
+use bevy::prelude::{Bundle, Commands, Component, Entity, EventReader, PbrBundle, Query, With};
 
 use crate::{PbrState, SpawnedNode, TypedNode};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Component)]
 pub struct FinalType;
 
 #[derive(Bundle)]
@@ -42,7 +42,7 @@ impl TypedNode for Final {
 
 pub struct UpdateEvent(pub Entity);
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct Finals(pub HashSet<Entity>);
 
 pub fn final_update(mut events: EventReader<UpdateEvent>, mut query: Query<&mut PbrState, With<FinalType>>) {
